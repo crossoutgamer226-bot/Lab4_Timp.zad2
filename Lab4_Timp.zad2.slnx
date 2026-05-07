@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="Controller/Controller.csproj" Id="ce1f75db-1962-421d-b872-bde85e84530f" />
+  <Project Path="Dispatcher/Dispatcher.csproj" Id="16053040-2f1b-478e-9421-16c35bb53bda" />
+  <Project Path="Lab4_Timp.zad2/Lab4_Timp.zad2.csproj" Id="11fe9149-124c-4e3b-b7eb-72afb323e482" />
+</Solution>
