@@ -8,14 +8,20 @@ using System.Windows.Forms.DataVisualization.Charting;
 
 namespace Dispatcher
 {
+    /// <summary>
+    /// Главная форма диспетчера, принимающая данные температуры и давления от контроллера.
+    /// </summary>
     public partial class Form1 : Form
     {
         private TcpListener listener;
         private Thread listenThread;
         private bool running = true;
 
-        private int timeIndex = 0;
+        private int timeIndex;
 
+        /// <summary>
+        /// Инициализирует новый экземпляр класса <see cref="Form1"/>.
+        /// </summary>
         public Form1()
         {
             InitializeComponent();
@@ -23,9 +29,9 @@ namespace Dispatcher
             StartServer();
         }
 
-        // ------------------------------------------------------------
-        // ИНИЦИАЛИЗАЦИЯ ГРАФИКОВ
-        // ------------------------------------------------------------
+        /// <summary>
+        /// Инициализирует графики температуры и давления.
+        /// </summary>
         private void InitCharts()
         {
             chartTemp.Series.Clear();
@@ -51,9 +57,9 @@ namespace Dispatcher
             chartPress.ChartAreas[0].AxisY.Title = "Давление (атм)";
         }
 
-        // ------------------------------------------------------------
-        // ЗАПУСК TCP-СЕРВЕРА
-        // ------------------------------------------------------------
+        /// <summary>
+        /// Запускает TCP‑сервер для приёма данных от контроллера.
+        /// </summary>
         private void StartServer()
         {
             listener = new TcpListener(IPAddress.Any, 9002);
@@ -64,6 +70,9 @@ namespace Dispatcher
             listenThread.Start();
         }
 
+        /// <summary>
+        /// Основной цикл ожидания подключений.
+        /// </summary>
         private void ListenLoop()
         {
             while (running)
@@ -75,18 +84,26 @@ namespace Dispatcher
                 }
                 catch
                 {
-                    if (!running) break;
+                    if (!running)
+                    {
+                        break;
+                    }
                 }
             }
         }
 
-        // ------------------------------------------------------------
-        // ОБРАБОТКА ПОДКЛЮЧЕНИЯ КЛИЕНТА
-        // ------------------------------------------------------------
+        /// <summary>
+        /// Обрабатывает подключение клиента и получение данных.
+        /// </summary>
+        /// <param name="state">Объект клиента.</param>
         private void HandleClient(object state)
         {
             TcpClient client = state as TcpClient;
-            if (client == null) return;
+
+            if (client == null)
+            {
+                return;
+            }
 
             try
             {
@@ -95,78 +112,107 @@ namespace Dispatcher
                 {
                     byte[] buffer = new byte[256];
                     int bytes = stream.Read(buffer, 0, buffer.Length);
-                    if (bytes <= 0) return;
 
-                    string msg = Encoding.UTF8.GetString(buffer, 0, bytes).Trim();
+                    if (bytes <= 0)
+                    {
+                        return;
+                    }
 
-                    double temp = 0;
-                    double press = 0;
+                    string message = Encoding.UTF8.GetString(buffer, 0, bytes).Trim();
 
-                    string[] parts = msg.Split(';');
+                    double temperature = 0.0;
+                    double pressure = 0.0;
+
+                    string[] parts = message.Split(';');
+
                     foreach (string part in parts)
                     {
                         if (part.StartsWith("TEMP="))
                         {
-                            string val = part.Substring(5).Replace(',', '.');
-                            double.TryParse(val, System.Globalization.NumberStyles.Float,
-                                System.Globalization.CultureInfo.InvariantCulture, out temp);
+                            string value = part.Substring(5).Replace(',', '.');
+
+                            double.TryParse(
+                                value,
+                                System.Globalization.NumberStyles.Float,
+                                System.Globalization.CultureInfo.InvariantCulture,
+                                out temperature);
                         }
                         else if (part.StartsWith("PRESS="))
                         {
-                            string val = part.Substring(6).Replace(',', '.');
-                            double.TryParse(val, System.Globalization.NumberStyles.Float,
-                                System.Globalization.CultureInfo.InvariantCulture, out press);
+                            string value = part.Substring(6).Replace(',', '.');
+
+                            double.TryParse(
+                                value,
+                                System.Globalization.NumberStyles.Float,
+                                System.Globalization.CultureInfo.InvariantCulture,
+                                out pressure);
                         }
                     }
 
-                    AddPoint(temp, press);
+                    AddPoint(temperature, pressure);
                 }
             }
             catch
             {
-                // Игнорируем ошибки
+                // Ошибка игнорируется.
             }
         }
 
-        // ------------------------------------------------------------
-        // ДОБАВЛЕНИЕ ТОЧЕК НА ГРАФИКИ
-        // ------------------------------------------------------------
-        private void AddPoint(double temp, double press)
+        /// <summary>
+        /// Добавляет новую точку на графики температуры и давления.
+        /// </summary>
+        /// <param name="temperature">Температура.</param>
+        /// <param name="pressure">Давление.</param>
+        private void AddPoint(double temperature, double pressure)
         {
             if (InvokeRequired)
             {
-                Invoke(new Action<double, double>(AddPoint), temp, press);
+                Invoke(new Action<double, double>(AddPoint), temperature, pressure);
                 return;
             }
 
             timeIndex++;
 
-            chartTemp.Series[0].Points.AddXY(timeIndex, temp);
-            chartPress.Series[0].Points.AddXY(timeIndex, press);
+            chartTemp.Series[0].Points.AddXY(timeIndex, temperature);
+            chartPress.Series[0].Points.AddXY(timeIndex, pressure);
 
             if (chartTemp.Series[0].Points.Count > 100)
+            {
                 chartTemp.Series[0].Points.RemoveAt(0);
+            }
 
             if (chartPress.Series[0].Points.Count > 100)
+            {
                 chartPress.Series[0].Points.RemoveAt(0);
+            }
 
             chartTemp.ChartAreas[0].RecalculateAxesScale();
             chartPress.ChartAreas[0].RecalculateAxesScale();
         }
 
-        // ------------------------------------------------------------
-        // КОРРЕКТНОЕ ЗАВЕРШЕНИЕ СЕРВЕРА
-        // ------------------------------------------------------------
+        /// <summary>
+        /// Обрабатывает закрытие формы и завершает работу сервера.
+        /// </summary>
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
             running = false;
-            try { listener.Stop(); } catch { }
+
+            try
+            {
+                listener.Stop();
+            }
+            catch
+            {
+                // Ошибка игнорируется.
+            }
         }
 
-        // ------------------------------------------------------------
-        // ПУСТЫЕ ОБРАБОТЧИКИ
-        // ------------------------------------------------------------
-        private void chartPress_Click(object sender, EventArgs e) { }
-        private void chartTemp_Click_1(object sender, EventArgs e) { }
+        private void chartPress_Click(object sender, EventArgs e)
+        {
+        }
+
+        private void chartTemp_Click_1(object sender, EventArgs e)
+        {
+        }
     }
 }
